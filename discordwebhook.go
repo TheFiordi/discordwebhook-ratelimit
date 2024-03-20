@@ -10,13 +10,30 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/url"
 	"time"
 )
 
-func SendMessage(url string, message Message, r1 *RateLimiter) error {
+func SendMessage(webhook string, message Message, proxy string) error {
 	// Validate parameters
-	if url == "" {
+	if webhook == "" {
 		return errors.New("empty URL")
+	}
+
+	// Prepare the HTTP client
+	var httpClient *http.Client
+	if proxy != "" {
+		proxyURL, err := url.Parse(proxy)
+		if err != nil {
+			return err
+		}
+		httpClient = &http.Client{
+			Transport: &http.Transport{
+				Proxy: http.ProxyURL(proxyURL),
+			},
+		}
+	} else {
+		httpClient = http.DefaultClient
 	}
 
 	for {
@@ -28,7 +45,7 @@ func SendMessage(url string, message Message, r1 *RateLimiter) error {
 		}
 
 		// Make the HTTP request
-		resp, err := http.Post(url, "application/json", payload)
+		resp, err := httpClient.Post(webhook, "application/json", payload)
 
 		if err != nil {
 			log.Printf("HTTP request failed: %v", err)

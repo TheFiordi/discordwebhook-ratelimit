@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -45,10 +44,17 @@ func SendMessage(webhook string, message Message, proxy string) error {
 		}
 
 		// Make the HTTP request
-		resp, err := httpClient.Post(webhook, "application/json", payload)
+		req, err := http.NewRequest(http.MethodPost, webhook, payload)
+		if err != nil {
+			return err
+		}
+
+		req.Header.Set("connection", "close")
+		req.Header.Set("content-type", "application/json")
+
+		resp, err := httpClient.Do(req)
 
 		if err != nil {
-			log.Printf("HTTP request failed: %v", err)
 			return err
 		}
 
@@ -92,11 +98,11 @@ func SendMessage(webhook string, message Message, proxy string) error {
 			}
 		default:
 			// Handle other HTTP status codes
-			err := resp.Body.Close()
+			responseBody, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
 				return err
 			}
-			responseBody, err := ioutil.ReadAll(resp.Body)
+			err = resp.Body.Close()
 			if err != nil {
 				return err
 			}
